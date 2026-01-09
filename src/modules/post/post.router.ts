@@ -1,71 +1,16 @@
-
-import express, { NextFunction, Request, Response } from 'express';
-import { postController } from './post.controller';
-import { auth as betterAuth } from '../../lib/auth';
+import express from "express";
+import { postController } from "./post.controller";
+import auth, { UserRole } from "../../middleware/auth";
 
 const router = express.Router();
 
-export enum UserRole {
-    USER = 'USER',
-    ADMIN = 'ADMIN'
-}
 
-declare global {
-    namespace Express {
-        interface Request {
-            user?: {
-                id: string;
-                email: string;
-                name: string;
-                role: string;
-                emailVerified: boolean;
-            }
-           
-        }
-    }
-}
+router.get("/",
+     postController.getAllPosts
+);
 
-const auth = (...roles: UserRole[]) => {
-    return async (req: Request, res: Response, next: NextFunction) => {
-    
-        const session = await betterAuth.api.getSession({
-  headers: req.headers as any
-})
-
-     
-    console.log(session);
-
-
-        if(!session){
-            return res.status(401).send({ message: 'Unauthorized access!' });
-        }
-
-        if(!session.user.emailVerified){
-            return res.status(403).send({ message: 'Please verify your email to access this resource.' });
-        }
-
-         req.user = {
-            id: session.user.id,
-            email: session.user.email!,
-            name: session.user.name!,
-            role: session.user.role!,
-            emailVerified: session.user.emailVerified,
-        }
-
-        if(roles.length && !roles.includes(session.user.role as UserRole)){
-            return res.status(403).send({ message: 'Forbidden access!' });
-        }
-
-
-       
-
-
-next();
-    }
-}
-
-router.post('/', 
-    auth(UserRole.ADMIN),
+router.post("/", 
+    auth(UserRole.ADMIN, UserRole.USER),
     postController.createPost);
 
 export const postRouter = router;
